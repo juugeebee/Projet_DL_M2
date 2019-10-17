@@ -17,6 +17,10 @@ import os
 #Acces aux fichiers et generation des listes
 path = os.getcwd()
 oknotok = os.access(path + "/Data", mode=os.R_OK)
+if oknotok == FALSE:
+    print("Le repertoire Data n'existe pas. Le programme va s'arreter!")
+    break
+
 data_path = os.chroot(path + "/Data")
 print(data_path)
 
@@ -46,6 +50,10 @@ with open (nucleotid_file, "r") as fillin:
         nucleotid_list.append(ligne)
 
 oknotok = os.access(data_path + "/voxels", mode=os.R_OK)
+if oknotok == FALSE:
+    print("Le repertoire voxels n'existe pas. Le programme va s'arreter!")
+    break
+
 voxel_path = os.chroot(data_path + "/voxels")
 voxel_list = os.listdir(voxel_path)
 
