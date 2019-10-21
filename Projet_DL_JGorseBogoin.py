@@ -11,7 +11,6 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras import backend as K
 
 
-
 def creation_control (nbre_individu):
     #Génération des listes contenant 50 poches choisies au hasard 
     echantillon_control = random.sample(control_list, nbre_individu)
@@ -75,44 +74,44 @@ def definition_de_y(echantillon_voxel, nucleotide, heme, control, steroid):
 
 def creation_modele ():
     model = Sequential()
-        # Conv layer 1
-        model.add(Convolution3D(
-            input_shape = (14,32,32,32),
-            filters=64,
-            kernel_size=5,
-            padding='valid',     # Padding method
-            data_format='channels_first',
-        ))
-        model.add(LeakyReLU(alpha = 0.1))
-        # Dropout 1
-        model.add(Dropout(0.2))
-        # Conv layer 2
-        model.add(Convolution3D(
-            filters=64,
-            kernel_size=3,
-            padding='valid',     # Padding method
-            data_format='channels_first',
-        ))
-        model.add(LeakyReLU(alpha = 0.1))
-        # Maxpooling 1
-        model.add(MaxPooling3D(
-            pool_size=(2,2,2),
-            strides=None,
-            padding='valid',    # Padding method
-            data_format='channels_first'
-        ))
-        # Dropout 2
-        model.add(Dropout(0.4))
-        # FC 1
-        model.add(Flatten())
-        model.add(Dense(128)) # TODO changed to 64 for the CAM
-        model.add(LeakyReLU(alpha = 0.1))
-        # Dropout 3
-        model.add(Dropout(0.4))
-        # Fully connected layer 2 to shape (2) for 2 classes
-        model.add(Dense(2))
-        model.add(Activation('softmax'))
-        return model   
+    # Conv layer 1
+    model.add(Convolution3D(
+        input_shape = (14,32,32,32),
+        filters=64,
+        kernel_size=5,
+        padding='valid',     # Padding method
+        data_format='channels_first',
+    ))
+    model.add(LeakyReLU(alpha = 0.1))
+    # Dropout 1
+    model.add(Dropout(0.2))
+    # Conv layer 2
+    model.add(Convolution3D(
+        filters=64,
+        kernel_size=3,
+        padding='valid',     # Padding method
+        data_format='channels_first',
+    ))
+    model.add(LeakyReLU(alpha = 0.1))
+    # Maxpooling 1
+    model.add(MaxPooling3D(
+        pool_size=(2,2,2),
+        strides=None,
+        padding='valid',    # Padding method
+        data_format='channels_first'
+    ))
+    # Dropout 2
+    model.add(Dropout(0.4))
+    # FC 1
+    model.add(Flatten())
+    model.add(Dense(128)) # TODO changed to 64 for the CAM
+    model.add(LeakyReLU(alpha = 0.1))
+    # Dropout 3
+    model.add(Dropout(0.4))
+    # Fully connected layer 2 to shape (2) for 2 classes
+    model.add(Dense(2))
+    model.add(Activation('softmax'))
+    return model   
 
 
 ###### MAIN ######
@@ -168,6 +167,12 @@ test_voxels = generation_voxels(voxels_tot, test_steroid, test_heme, test_nucleo
 X_test = definition_de_x(voxels_path, test_voxels)
 Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control, test_steroid)
 encoded_Y_test = to_categorical(Y_test)
+
+#Creation du modèle
+critor = EarlyStopping(monitor = "val_loss", patience = 3, mode = "min")
+my_model = creation_modele()
+my_model.fit(X_train, encoded_Y_train, epochs = 15, batch_size = 20,
+             validation_split = 0.1, callbacks = [critor])
 
 
 
