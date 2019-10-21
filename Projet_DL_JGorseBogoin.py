@@ -9,6 +9,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation, Convolution3D, MaxPooling3D, Dropout, Flatten
 from keras.layers.advanced_activations import LeakyReLU
 from keras import backend as K
+from keras.callbacks.callbacks import EarlyStopping
 
 
 def creation_control (nbre_individu):
@@ -55,7 +56,6 @@ def definition_de_x(path, echantillon_voxel):
         print("{}".format(voxel))
     X = [np.squeeze(array) for array in X]
     X = np.array(X)
-    X = np.moveaxis(X, 1, -1)
     return X
 
 def definition_de_y(echantillon_voxel, nucleotide, heme, control, steroid):
@@ -72,6 +72,7 @@ def definition_de_y(echantillon_voxel, nucleotide, heme, control, steroid):
     Y  = np.array(Y)
     return Y
 
+#Modele de DeepDrug3D
 def creation_modele ():
     model = Sequential()
     # Conv layer 1
@@ -104,7 +105,7 @@ def creation_modele ():
     model.add(Dropout(0.4))
     # FC 1
     model.add(Flatten())
-    model.add(Dense(128)) # TODO changed to 64 for the CAM
+    model.add(Dense(128)) 
     model.add(LeakyReLU(alpha = 0.1))
     # Dropout 3
     model.add(Dropout(0.4))
@@ -171,8 +172,63 @@ encoded_Y_test = to_categorical(Y_test)
 #Creation du modèle
 critor = EarlyStopping(monitor = "val_loss", patience = 3, mode = "min")
 my_model = creation_modele()
+my_model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=['accuracy'])
 my_model.fit(X_train, encoded_Y_train, epochs = 15, batch_size = 20,
              validation_split = 0.1, callbacks = [critor])
+
+#Evaluation du modèle
+evaluation = my_model.evaluate(X_test, encoded_Y_test)
+print(evaluation)
+
+training = KerasClassifier(build_fn = model_one, epochs = 5, batch_size=20, verbose=0)
+kfold = KFold(n_splits = 5, shuffle=True)
+cv_result = cross_val_score(training, X_train, one_hot_Y_train, cv = kfold)
+print(cv_result)
+print("%.2f%%(%2d%%)"%(cv_result.mean()*100, cv_result.std()*100))
+
+predictions = my_model.predict(X_test)
+
+tp = 0
+fp = 0
+tn = 0
+fn = 0
+
+for i in range(predictions.shape[0]):
+    maxi = max(predictions[i,:])
+    if maxi == predictions[i, 0]:
+        classe = 0
+    elif maxi == predictions[i,1]:
+        classe = 1
+    elif maxi == predictions[i,2]:
+        classe = 2
+        
+    if (one_hot_Y_test[i, 0] == 1.0) and (classe == 0):
+        tp += 1
+    elif (one_hot_Y_test[i, 1] == 1.0) and (classe == 1):
+        tp += 1
+    elif (one_hot_Y_test[i, 2] == 1.0) and (classe == 0):
+        fp += 1
+    elif (one_hot_Y_test[i, 2] == 1.0) and (classe == 1):
+        fp += 1
+    elif (one_hot_Y_test[i, 2] == 1.0) and (classe == 2):
+        tn += 1
+    elif (one_hot_Y_test[i, 2] == 0.0) and (classe == 2):
+        fn += 1
+        
+from math import sqrt
+
+print("TP:{:.2f}%".format(tp*100/len(predictions)))
+print("FP:{:.2f}%".format(fp*100/len(predictions)))
+print("TN:{:.2f}".format(tn*100/len(predictions)))
+print("FN:{:.2f}".format(fn*100/len(predictions)))
+print("ACC = {:.2f}%".format((tp+tn)*100/(tp+tn+fp+fn)))
+print("PPV = {:.2f}%".format(tp*100/(tp+fp)))
+print("TNR = {:.2f}%".format(tn*100/(tn+fp)))
+print("TPR = {:.2f}%".format(tp*100/(tp+fn)))
+print("FPR = {:.2f}%".format(fp*100/(fp+tn)))
+print("MCC = {:.2f}".format(((tn*tp)-(fp*fn))/sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))))
+
+
 
 
 
