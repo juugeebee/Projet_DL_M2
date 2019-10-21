@@ -77,7 +77,7 @@ def definition_de_y(chosen_pocket, nucleotid, heme, control, steroid):
 
 ###### MAIN ######
 
-#Génération des listes Poches
+#Génération des listes poches
 control_list = []
 heme_list = []
 steroid_list = []
@@ -104,17 +104,31 @@ voxels_path = "/Users/julieb/Data_DL/Voxels"
 voxels_tot = os.listdir(voxels_path)
 voxels_tot = list(filter(lambda fichier: fichier.endswith('.npy'), voxels_tot))
 
+
 ###### JEU D'APPRENTISSAGE ######
 
-train_control = creation_control(50)
-train_heme = creation_heme(50)
-train_steroid = creation_steroid(50)
-train_nucleotide = creation_nucleotide(50)
+train_control = creation_control(40)
+train_heme = creation_heme(40)
+train_steroid = creation_steroid(40)
+train_nucleotide = creation_nucleotide(40)
 train_voxels = generation_voxels(voxels_tot, train_steroid, train_heme, train_nucleotide, train_control)
 
 #Chargement des voxels
 X_train = definition_de_x(voxels_path, train_voxels)
 Y_train = definition_de_y(train_voxels, nucleotide_list, heme_list, control_list, steroid_list)
+
+
+###### JEU DE TEST ######
+
+test_control = creation_control(69)
+test_heme = creation_heme(69)
+test_steroid = creation_steroid(69)
+test_nucleotide = creation_nucleotide(69)
+test_voxels = generation_voxels(voxels_tot, test_steroid, test_heme, test_nucleotide, test_control)
+
+#Chargement des voxels
+X_est = definition_de_x(voxels_path, test_voxels)
+Y_train = definition_de_y(test_voxels, nucleotide_list, heme_list, control_list, steroid_list)
 
 
 
