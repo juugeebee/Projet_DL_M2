@@ -3,14 +3,16 @@ import numpy as np
 import os
 import random
 import keras
+import matplotlib.pyplot as plt
 
 from keras.utils import to_categorical
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Convolution3D, MaxPooling3D, Dropout, Flatten
 from keras.layers.advanced_activations import LeakyReLU
-from keras import backend as K
-from keras.callbacks.callbacks import EarlyStopping
+from keras import backend as k
+from keras.callbacks import EarlyStopping
 from keras.wrappers.scikit_learn import KerasClassifier
+
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
@@ -62,6 +64,7 @@ def definition_de_x(path, echantillon_voxel):
     X = [np.squeeze(array) for array in X]
     X = np.array(X)
     return X
+
 
 def definition_de_y(echantillon_voxel, nucleotide, heme, control, steroid):
     Y = []
@@ -128,24 +131,29 @@ heme_list = []
 steroid_list = []
 nucleotide_list = []
 
-with open ("/Users/julieb/Data_DL/control_list.txt", "r") as fillin:
+
+with open ("./Data/control.list", "r") as fillin:
     for ligne in fillin:
-        control_list.append(ligne.replace('\n',''))
+        control = ligne.replace('\n','')
+        control_list.append(control)
         
-with open ("/Users/julieb/Data_DL/heme_list.txt", "r") as fillin:
+with open ("./Data/heme.list", "r") as fillin:
     for ligne in fillin:
-        heme_list.append(ligne.replace('\n',''))
+        heme = ligne.replace('\n','')
+        heme_list.append(heme)
 
-with open ("/Users/julieb/Data_DL/steroid_list.txt", "r") as fillin:
+with open ("./Data/steroid.list", "r") as fillin:
     for ligne in fillin:
-        steroid_list.append(ligne.replace('\n',''))
+        steroid = ligne.replace('\n','')
+        steroid_list.append(steroid)
 
-with open ("/Users/julieb/Data_DL/nucleotide_list.txt", "r") as fillin:
+with open ("./Data/nucleotide.list", "r") as fillin:
     for ligne in fillin:
-        nucleotide_list.append(ligne.replace('\n',''))
+        nucleotide = ligne.replace('\n','')
+        nucleotide_list.append(nucleotide)
 
 #Génération de la liste Voxels
-voxels_path = "/Users/julieb/Data_DL/Voxels"
+voxels_path = "./Data/Voxels/"
 voxels_tot = os.listdir(voxels_path)
 voxels_tot = list(filter(lambda fichier: fichier.endswith('.npy'), voxels_tot))
 
@@ -185,7 +193,7 @@ my_model.fit(X_train, encoded_Y_train, epochs = 15, batch_size = 20,
 evaluation = my_model.evaluate(X_test, encoded_Y_test)
 print(evaluation)
 
-training = KerasClassifier(build_fn = my_model, epochs = 5, batch_size=20, verbose=0)
+training = KerasClassifier(build_faux_negatifs = my_model, epochs = 5, batch_size=20, verbose=0)
 kfold = KFold(n_splits = 5, shuffle=True)
 cv_result = cross_val_score(training, X_train, encoded_Y_train, cv = kfold)
 print(cv_result)
@@ -193,10 +201,10 @@ print("%.2f%%(%2d%%)"%(cv_result.mean()*100, cv_result.std()*100))
 
 predictions = my_model.predict(X_test)
 
-tp = 0
-fp = 0
-tn = 0
-fn = 0
+vrai_positifs = 0
+faux_positifs = 0
+vrai_negatifs = 0
+faux_negatifs = 0
 
 for i in range(predictions.shape[0]):
     maxi = max(predictions[i,:])
@@ -208,28 +216,28 @@ for i in range(predictions.shape[0]):
         classe = 2
         
     if (encoded_Y_test[i, 0] == 1.0) and (classe == 0):
-        tp += 1
+        vrai_positifs += 1
     elif (encoded_Y_test[i, 1] == 1.0) and (classe == 1):
-        tp += 1
+        vrai_positifs += 1
     elif (encoded_Y_test[i, 2] == 1.0) and (classe == 0):
-        fp += 1
+        faux_positifs += 1
     elif (encoded_Y_test[i, 2] == 1.0) and (classe == 1):
-        fp += 1
+        faux_positifs += 1
     elif (encoded_Y_test[i, 2] == 1.0) and (classe == 2):
-        tn += 1
+        vrai_negatifs += 1
     elif (encoded_Y_test[i, 2] == 0.0) and (classe == 2):
-        fn += 1
+        faux_negatifs += 1
 
-print("TP:{:.2f}%".format(tp*100/len(predictions)))
-print("FP:{:.2f}%".format(fp*100/len(predictions)))
-print("TN:{:.2f}".format(tn*100/len(predictions)))
-print("FN:{:.2f}".format(fn*100/len(predictions)))
-print("ACC = {:.2f}%".format((tp+tn)*100/(tp+tn+fp+fn)))
-print("PPV = {:.2f}%".format(tp*100/(tp+fp)))
-print("TNR = {:.2f}%".format(tn*100/(tn+fp)))
-print("TPR = {:.2f}%".format(tp*100/(tp+fn)))
-print("FPR = {:.2f}%".format(fp*100/(fp+tn)))
-print("MCC = {:.2f}".format(((tn*tp)-(fp*fn))/sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))))
+print("vrai_positifs:{:.2f}%".format(vrai_positifs*100/len(predictions)))
+print("faux_positifs:{:.2f}%".format(faux_positifs*100/len(predictions)))
+print("vrai_negatifs:{:.2f}".format(vrai_negatifs*100/len(predictions)))
+print("faux_negatifs:{:.2f}".format(faux_negatifs*100/len(predictions)))
+print("ACC = {:.2f}%".format((vrai_positifs+vrai_negatifs)*100/(vrai_positifs+vrai_negatifs+faux_positifs+faux_negatifs)))
+print("PPV = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_positifs)))
+print("vrai_negatifsR = {:.2f}%".format(vrai_negatifs*100/(vrai_negatifs+faux_positifs)))
+print("vrai_positifsR = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_negatifs)))
+print("faux_positifsR = {:.2f}%".format(faux_positifs*100/(faux_positifs+vrai_negatifs)))
+print("MCC = {:.2f}".format(((vrai_negatifs*vrai_positifs)-(faux_positifs*faux_negatifs))/sqrt((vrai_positifs+faux_positifs)*(vrai_positifs+faux_negatifs)*(vrai_negatifs+faux_positifs)*(vrai_negatifs+faux_negatifs))))
 
 
 
