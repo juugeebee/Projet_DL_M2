@@ -156,10 +156,20 @@ voxels_path = "./Data/Voxels/"
 voxels_tot = os.listdir(voxels_path)
 voxels_tot = list(filter(lambda fichier: fichier.endswith('.npy'), voxels_tot))
 
+        #Génération d'un jeu de données avec 200 poches
+jeu_control = creation_control(200)
+jeu_heme = creation_heme(200)
+jeu_nucleotide = creation_nucleotide(200)
+
     ###### JEU D'APPRENTISSAGE ######
-train_control = creation_control(50)
-train_heme = creation_heme(50)
-train_nucleotide = creation_nucleotide(50)
+train_control = []
+train_heme = []
+train_nucleotide = []
+
+train_control = jeu_control[:51]
+train_heme = jeu_heme[:51]
+train_nucleotide = jeu_nucleotide[:51]
+
 train_voxels = generation_voxels(voxels_tot, train_heme, train_nucleotide, train_control)
 
 X_train = definition_de_x(voxels_path, train_voxels)
@@ -169,9 +179,14 @@ encoded_Y_train = to_categorical(Y_train)
 print("Format du Y_train: {}\n".format(encoded_Y_train.shape))
 
     ###### JEU DE TEST ######
-test_control = creation_control(130)
-test_heme = creation_heme(130)
-test_nucleotide = creation_nucleotide(130)
+test_control = []
+test_heme = []
+test_nucleotide = []
+
+test_control = jeu_control[50:201]
+test_heme = jeu_heme[50:201]
+test_nucleotide = jeu_heme[50:201]
+
 test_voxels = generation_voxels(voxels_tot, test_heme, test_nucleotide, test_control)
 
 X_test = definition_de_x(voxels_path, test_voxels)
