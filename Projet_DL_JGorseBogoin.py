@@ -86,37 +86,27 @@ def creation_modele ():
     # Conv layer 1
     model.add(Convolution3D(
         input_shape = (14,32,32,32),
-        filters=64,
+        filters=14,
         kernel_size=5,
-        padding='valid',     # Padding method
+        padding='same',   
         data_format='channels_first',
+        activation = 'relu'
     ))
-    model.add(LeakyReLU(alpha = 0.1))
     # Dropout 1
     model.add(Dropout(0.2))
-    # Conv layer 2
-    model.add(Convolution3D(
-        filters=64,
-        kernel_size=3,
-        padding='valid',     # Padding method
-        data_format='channels_first',
-    ))
-    model.add(LeakyReLU(alpha = 0.1))
     # Maxpooling 1
     model.add(MaxPooling3D(
         pool_size=(2,2,2),
         strides=None,
-        padding='valid',    # Padding method
+        padding='same',    # Padding method
         data_format='channels_first'
     ))
     # Dropout 2
     model.add(Dropout(0.4))
     # FC 1
     model.add(Flatten())
-    model.add(Dense(128)) 
-    model.add(LeakyReLU(alpha = 0.1))
-    # Dropout 3
-    model.add(Dropout(0.4))
+    model.add(Dense(512))
+    model.add(Activation('relu')) 
     # Fully connected layer 2 to shape (3) for 3 classes
     model.add(Dense(3))
     model.add(Activation('softmax'))
@@ -194,12 +184,13 @@ Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control)
 encoded_Y_test = to_categorical(Y_test)
 
     ###### CREATION DU MODEL ######
-critor = EarlyStopping(monitor = "val_loss", patience = 3, mode = "min")
 my_model = creation_modele()
-my_model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=['accuracy'])
+print(my_model.summary())
+my_model.compile(optimizer=keras.optimizers.Adam(lr=0.00001),loss="categorical_crossentropy",metrics=['accuracy'])
 
-history = my_model.fit(X_train, encoded_Y_train, epochs = 50, batch_size = 20,
-             validation_split = 0.1, callbacks = [critor])
+
+history = my_model.fit(X_train, encoded_Y_train, epochs = 10, batch_size = 20,
+             validation_split = 0.1)
 
         #Sauvegarder le model
 my_model.save('./my_model.h5')
@@ -244,11 +235,13 @@ print("Pourcentage de faux positifs: {:.2f}%".format(faux_positifs*100/len(predi
 print("Pourcentage de vrais negatifs: {:.2f}%".format(vrai_negatifs*100/len(predictions)))
 print("Pourcentage de faux negatifs: {:.2f}%\n".format(faux_negatifs*100/len(predictions)))
 
+
     ### NUCLEOTIDES
 y_test_prediction_nucleotide = predictions[:,0]
 y_test_nucleotide = encoded_Y_test[:,0]
 nucleotide_fpr, nucleotide_tpr, nucleotide_thresholds = metrics.roc_curve(y_test_nucleotide, y_test_prediction_nucleotide, pos_label=2)
 nucleotide_roc_auc = metrics.auc(nucleotide_fpr, nucleotide_tpr)
+
 
     ### HEME
 y_test_prediction_heme = predictions[:,1]
@@ -256,41 +249,35 @@ y_test_heme = encoded_Y_test[:,1]
 heme_fpr, heme_tpr, heme_thresholds = metrics.roc_curve(y_test_heme, y_test_prediction_heme, pos_label=2)
 heme_roc_auc = metrics.auc(heme_fpr, heme_tpr)
 
+
     ### CONTROL
 y_test_prediction_control = predictions[:,2]
 y_test_control = encoded_Y_test[:,2]
 control_fpr, control_tpr, control_thresholds = metrics.roc_curve(y_test_control, y_test_prediction_control, pos_label=2)
 control_roc_auc = metrics.auc(control_fpr, control_tpr)
 
-    ### Courbes de ROC: evaluate classifier output quality using cross-validation
-plt.title("Courbe ROC")
 
-plt.plot(control_fpr,
-        control_tpr,
-        color='blue',
-        linestyle='-',
-        linewidth=2,
-        label = "control AUC = %0.2f" % control_roc_auc)
+# Plot all ROC curves
+plt.figure()
+plt.plot(nucleotide_fpr, nucleotide_tpr,
+         label='micro-average ROC curve (area = {0:0.2f})'
+               ''.format(nucleotide_roc_auc),
+         color='deeppink', linestyle=':', linewidth=4)
 
-plt.plot(heme_fpr,
-        heme_tpr,
-        color='purple',
-        linestyle='-',
-        linewidth=2,
-        label = "heme AUC = %0.2f" % heme_roc_auc)
+plt.plot(heme_fpr, heme_tpr,
+         label='macro-average ROC curve (area = {0:0.2f})'
+               ''.format(heme_roc_auc),
+         color='navy', linestyle=':', linewidth=4)
 
-plt.plot(nucleotide_fpr,
-        nucleotide_tpr,
-        color='orange',
-        linestyle='-',
-        linewidth=2,
-        label = "nucleotide AUC = %0.2f" % nucleotide_roc_auc)
+plt.plot(control_fpr, control_tpr,
+         label='macro-average ROC curve (area = {0:0.2f})'
+               ''.format(control_roc_auc),
+         color='navy', linestyle=':', linewidth=4)
 
-plt.legend(loc = 'lower right')
-plt.plot([0, 1], [0, 1], 'r--')
-plt.xlim([0, 1])
-plt.ylim([0, 1.05])
-plt.ylabel("Sensibility")
-plt.xlabel("1-Sensibility")
-
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Courbes de ROC')
+plt.legend(loc="lower right")
 plt.show()
