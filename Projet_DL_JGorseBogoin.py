@@ -13,8 +13,10 @@ from keras import backend as k
 from keras.callbacks import EarlyStopping
 from keras.wrappers.scikit_learn import KerasClassifier
 
+import sklearn.metrics as metrics
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
+
 
 from math import sqrt
 
@@ -188,18 +190,20 @@ encoded_Y_test = to_categorical(Y_test)
 critor = EarlyStopping(monitor = "val_loss", patience = 3, mode = "min")
 my_model = creation_modele()
 my_model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=['accuracy'])
-my_model.fit(X_train, encoded_Y_train, epochs = 15, batch_size = 20,
+
+my_model.fit(X_train, encoded_Y_train, epochs = 4, batch_size = 20,
              validation_split = 0.1, callbacks = [critor])
 
-# #Evaluation du modèle
-# evaluation = my_model.evaluate(X_test, encoded_Y_test)
-# print(evaluation)
+#Evaluation du modèle
+evaluation = my_model.evaluate(X_test, encoded_Y_test)
+print(evaluation)
 
-# training = KerasClassifier(build_faux_negatifs = my_model, epochs = 5, batch_size=20, verbose=0)
-# kfold = KFold(n_splits = 5, shuffle=True)
+#training = KerasClassifier(build_faux_negatifs = my_model, epochs = 5, batch_size=20, verbose=2)
+#kfold = KFold(n_splits = 5, shuffle=True)
 # cv_result = cross_val_score(training, X_train, encoded_Y_train, cv = kfold)
 # print(cv_result)
 # print("%.2f%%(%2d%%)"%(cv_result.mean()*100, cv_result.std()*100))
+
 
 # predictions = my_model.predict(X_test)
 
@@ -234,12 +238,8 @@ my_model.fit(X_train, encoded_Y_train, epochs = 15, batch_size = 20,
 # print("faux_positifs:{:.2f}%".format(faux_positifs*100/len(predictions)))
 # print("vrai_negatifs:{:.2f}".format(vrai_negatifs*100/len(predictions)))
 # print("faux_negatifs:{:.2f}".format(faux_negatifs*100/len(predictions)))
-# print("ACC = {:.2f}%".format((vrai_positifs+vrai_negatifs)*100/(vrai_positifs+vrai_negatifs+faux_positifs+faux_negatifs)))
-# print("PPV = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_positifs)))
-# print("vrai_negatifsR = {:.2f}%".format(vrai_negatifs*100/(vrai_negatifs+faux_positifs)))
-# print("vrai_positifsR = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_negatifs)))
-# print("faux_positifsR = {:.2f}%".format(faux_positifs*100/(faux_positifs+vrai_negatifs)))
-# print("MCC = {:.2f}".format(((vrai_negatifs*vrai_positifs)-(faux_positifs*faux_negatifs))/sqrt((vrai_positifs+faux_positifs)*(vrai_positifs+faux_negatifs)*(vrai_negatifs+faux_positifs)*(vrai_negatifs+faux_negatifs))))
+
+
 
 
 
