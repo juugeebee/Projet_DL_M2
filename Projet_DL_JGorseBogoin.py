@@ -66,17 +66,17 @@ def definition_de_x(path, echantillon_voxel):
     return X
 
 
-def definition_de_y(echantillon_voxel, nucleotide, heme, control, steroid):
+def definition_de_y(echantillon_voxel, nucleotide, heme, control):
     Y = []
     for voxel in echantillon_voxel:
         if voxel.replace('.npy','') in nucleotide:
-            Y.append(1)
+            Y.append(0)
         elif voxel.replace('.npy','') in heme:
-            Y.append(2)
-        elif voxel.replace('.npy','') in steroid:
-            Y.append(4)
+            Y.append(1)
         elif voxel.replace('.npy','') in control:
-            Y.append(3)
+            Y.append(2)
+        else:
+            Y.append(2)     
     Y  = np.array(Y)
     return Y
 
@@ -117,8 +117,8 @@ def creation_modele ():
     model.add(LeakyReLU(alpha = 0.1))
     # Dropout 3
     model.add(Dropout(0.4))
-    # Fully connected layer 2 to shape (2) for 2 classes
-    model.add(Dense(2))
+    # Fully connected layer 2 to shape (3) for 3 classes
+    model.add(Dense(3))
     model.add(Activation('softmax'))
     return model   
 
@@ -167,8 +167,10 @@ train_voxels = generation_voxels(voxels_tot, train_steroid, train_heme, train_nu
 
 #Chargement des voxels
 X_train = definition_de_x(voxels_path, train_voxels)
-Y_train = definition_de_y(train_voxels, train_nucleotide, train_heme, train_control, train_steroid)
+print(X_train.shape)
+Y_train = definition_de_y(train_voxels, train_nucleotide, train_heme, train_control)
 encoded_Y_train = to_categorical(Y_train)
+print(encoded_Y_train.shape)
 
 ###### JEU DE TEST ######
 test_control = creation_control(69)
@@ -179,7 +181,7 @@ test_voxels = generation_voxels(voxels_tot, test_steroid, test_heme, test_nucleo
 
 #Chargement des voxels
 X_test = definition_de_x(voxels_path, test_voxels)
-Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control, test_steroid)
+Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control)
 encoded_Y_test = to_categorical(Y_test)
 
 #Creation du modèle
@@ -189,55 +191,55 @@ my_model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=['accu
 my_model.fit(X_train, encoded_Y_train, epochs = 15, batch_size = 20,
              validation_split = 0.1, callbacks = [critor])
 
-#Evaluation du modèle
-evaluation = my_model.evaluate(X_test, encoded_Y_test)
-print(evaluation)
+# #Evaluation du modèle
+# evaluation = my_model.evaluate(X_test, encoded_Y_test)
+# print(evaluation)
 
-training = KerasClassifier(build_faux_negatifs = my_model, epochs = 5, batch_size=20, verbose=0)
-kfold = KFold(n_splits = 5, shuffle=True)
-cv_result = cross_val_score(training, X_train, encoded_Y_train, cv = kfold)
-print(cv_result)
-print("%.2f%%(%2d%%)"%(cv_result.mean()*100, cv_result.std()*100))
+# training = KerasClassifier(build_faux_negatifs = my_model, epochs = 5, batch_size=20, verbose=0)
+# kfold = KFold(n_splits = 5, shuffle=True)
+# cv_result = cross_val_score(training, X_train, encoded_Y_train, cv = kfold)
+# print(cv_result)
+# print("%.2f%%(%2d%%)"%(cv_result.mean()*100, cv_result.std()*100))
 
-predictions = my_model.predict(X_test)
+# predictions = my_model.predict(X_test)
 
-vrai_positifs = 0
-faux_positifs = 0
-vrai_negatifs = 0
-faux_negatifs = 0
+# vrai_positifs = 0
+# faux_positifs = 0
+# vrai_negatifs = 0
+# faux_negatifs = 0
 
-for i in range(predictions.shape[0]):
-    maxi = max(predictions[i,:])
-    if maxi == predictions[i, 0]:
-        classe = 0
-    elif maxi == predictions[i,1]:
-        classe = 1
-    elif maxi == predictions[i,2]:
-        classe = 2
+# for i in range(predictions.shape[0]):
+#     maxi = max(predictions[i,:])
+#     if maxi == predictions[i, 0]:
+#         classe = 0
+#     elif maxi == predictions[i,1]:
+#         classe = 1
+#     elif maxi == predictions[i,2]:
+#         classe = 2
         
-    if (encoded_Y_test[i, 0] == 1.0) and (classe == 0):
-        vrai_positifs += 1
-    elif (encoded_Y_test[i, 1] == 1.0) and (classe == 1):
-        vrai_positifs += 1
-    elif (encoded_Y_test[i, 2] == 1.0) and (classe == 0):
-        faux_positifs += 1
-    elif (encoded_Y_test[i, 2] == 1.0) and (classe == 1):
-        faux_positifs += 1
-    elif (encoded_Y_test[i, 2] == 1.0) and (classe == 2):
-        vrai_negatifs += 1
-    elif (encoded_Y_test[i, 2] == 0.0) and (classe == 2):
-        faux_negatifs += 1
+#     if (encoded_Y_test[i, 0] == 1.0) and (classe == 0):
+#         vrai_positifs += 1
+#     elif (encoded_Y_test[i, 1] == 1.0) and (classe == 1):
+#         vrai_positifs += 1
+#     elif (encoded_Y_test[i, 2] == 1.0) and (classe == 0):
+#         faux_positifs += 1
+#     elif (encoded_Y_test[i, 2] == 1.0) and (classe == 1):
+#         faux_positifs += 1
+#     elif (encoded_Y_test[i, 2] == 1.0) and (classe == 2):
+#         vrai_negatifs += 1
+#     elif (encoded_Y_test[i, 2] == 0.0) and (classe == 2):
+#         faux_negatifs += 1
 
-print("vrai_positifs:{:.2f}%".format(vrai_positifs*100/len(predictions)))
-print("faux_positifs:{:.2f}%".format(faux_positifs*100/len(predictions)))
-print("vrai_negatifs:{:.2f}".format(vrai_negatifs*100/len(predictions)))
-print("faux_negatifs:{:.2f}".format(faux_negatifs*100/len(predictions)))
-print("ACC = {:.2f}%".format((vrai_positifs+vrai_negatifs)*100/(vrai_positifs+vrai_negatifs+faux_positifs+faux_negatifs)))
-print("PPV = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_positifs)))
-print("vrai_negatifsR = {:.2f}%".format(vrai_negatifs*100/(vrai_negatifs+faux_positifs)))
-print("vrai_positifsR = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_negatifs)))
-print("faux_positifsR = {:.2f}%".format(faux_positifs*100/(faux_positifs+vrai_negatifs)))
-print("MCC = {:.2f}".format(((vrai_negatifs*vrai_positifs)-(faux_positifs*faux_negatifs))/sqrt((vrai_positifs+faux_positifs)*(vrai_positifs+faux_negatifs)*(vrai_negatifs+faux_positifs)*(vrai_negatifs+faux_negatifs))))
+# print("vrai_positifs:{:.2f}%".format(vrai_positifs*100/len(predictions)))
+# print("faux_positifs:{:.2f}%".format(faux_positifs*100/len(predictions)))
+# print("vrai_negatifs:{:.2f}".format(vrai_negatifs*100/len(predictions)))
+# print("faux_negatifs:{:.2f}".format(faux_negatifs*100/len(predictions)))
+# print("ACC = {:.2f}%".format((vrai_positifs+vrai_negatifs)*100/(vrai_positifs+vrai_negatifs+faux_positifs+faux_negatifs)))
+# print("PPV = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_positifs)))
+# print("vrai_negatifsR = {:.2f}%".format(vrai_negatifs*100/(vrai_negatifs+faux_positifs)))
+# print("vrai_positifsR = {:.2f}%".format(vrai_positifs*100/(vrai_positifs+faux_negatifs)))
+# print("faux_positifsR = {:.2f}%".format(faux_positifs*100/(faux_positifs+vrai_negatifs)))
+# print("MCC = {:.2f}".format(((vrai_negatifs*vrai_positifs)-(faux_positifs*faux_negatifs))/sqrt((vrai_positifs+faux_positifs)*(vrai_positifs+faux_negatifs)*(vrai_negatifs+faux_positifs)*(vrai_negatifs+faux_negatifs))))
 
 
 
