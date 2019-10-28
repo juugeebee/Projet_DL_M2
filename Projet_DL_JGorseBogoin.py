@@ -4,12 +4,14 @@ Master 2 BIB - 2019 2020
 Projet Deep Learning
 """
 
-#Importation des modules
+#Import des modules
 import numpy as np 
 import os
 import random
 import keras
 import matplotlib.pyplot as plt
+import sklearn.metrics as metrics
+import tensorflow as tf
 
 from keras.utils import to_categorical
 from keras.models import Sequential
@@ -19,14 +21,12 @@ from keras import backend as k
 from keras.callbacks import EarlyStopping
 from keras.wrappers.scikit_learn import KerasClassifier
 
-import sklearn.metrics as metrics
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
 from math import sqrt
 
-#Définition de la graine de random pour pouvoir reproduire les résultats
-np.random.seed(seed = 42)
+###### FONCTIONS ######
 
 def creation_control (nbre_individu):
     #Génération des listes contenant nbre_individu poches choisies au hasard 
@@ -39,15 +39,15 @@ def creation_heme (nbre_individu):
     random.shuffle(echantillon_heme)
     return echantillon_heme
 
-def creation_steroid (nbre_individu):
-    echantillon_steroid = random.sample(steroid_list, nbre_individu)
-    random.shuffle(echantillon_steroid)
-    return echantillon_steroid
-
 def creation_nucleotide (nbre_individu): 
     echantillon_nucleotide = random.sample(nucleotide_list, nbre_individu)  
     random.shuffle(echantillon_nucleotide)
     return echantillon_nucleotide
+
+def creation_steroid (nbre_individu):
+    echantillon_steroid = random.sample(steroid_list, nbre_individu)
+    random.shuffle(echantillon_steroid)
+    return echantillon_steroid
 
 def generation_voxels (voxels_tot, heme, nucleotide, control):
     #Génération de la liste des voxels
@@ -63,25 +63,20 @@ def generation_voxels (voxels_tot, heme, nucleotide, control):
     return echantillon_voxel
 
 def definition_de_x(path, echantillon_voxel):
-    try:
-        X = [np.load("{}/{}".format(path, voxel))
-             for voxel in echantillon_voxel]
-    except ValueError:
-        print("{}".format(voxel))
+    X = [np.load("{}/{}".format(path, voxel)) for voxel in echantillon_voxel]
     X = [np.squeeze(array) for array in X]
     X = np.array(X)
     return X
-
 
 def definition_de_y(echantillon_voxel, nucleotide, heme, control):
     Y = []
     for voxel in echantillon_voxel:
         if voxel.replace('.npy','') in nucleotide:
-            Y.append(1)
+            Y.append(0)
         elif voxel.replace('.npy','') in heme:
-            Y.append(2)
+            Y.append(1)
         elif voxel.replace('.npy','') in control:
-            Y.append(3)    
+            Y.append(2)    
     Y  = np.array(Y)
     return Y
 
@@ -130,12 +125,11 @@ def creation_modele ():
 
 ###### MAIN ######
 
-#Génération des listes poches
+        #Génération des listes poches
 control_list = []
 heme_list = []
 steroid_list = []
 nucleotide_list = []
-
 
 with open ("./Data/control.list", "r") as fillin:
     for ligne in fillin:
@@ -157,25 +151,24 @@ with open ("./Data/nucleotide.list", "r") as fillin:
         nucleotide = ligne.replace('\n','')
         nucleotide_list.append(nucleotide)
 
-#Génération de la liste Voxels
+        #Génération de la liste Voxels
 voxels_path = "./Data/Voxels/"
 voxels_tot = os.listdir(voxels_path)
 voxels_tot = list(filter(lambda fichier: fichier.endswith('.npy'), voxels_tot))
 
-
-###### JEU D'APPRENTISSAGE ######
+    ###### JEU D'APPRENTISSAGE ######
 train_control = creation_control(50)
 train_heme = creation_heme(50)
 train_nucleotide = creation_nucleotide(50)
 train_voxels = generation_voxels(voxels_tot, train_heme, train_nucleotide, train_control)
 
 X_train = definition_de_x(voxels_path, train_voxels)
-print("X_train : {}".format(X_train.shape))
+print("\nFormat du X_train: {}".format(X_train.shape))
 Y_train = definition_de_y(train_voxels, train_nucleotide, train_heme, train_control)
 encoded_Y_train = to_categorical(Y_train)
-print("Y_train : {}".format(encoded_Y_train.shape))
+print("Format du Y_train: {}\n".format(encoded_Y_train.shape))
 
-###### JEU DE TEST ######
+    ###### JEU DE TEST ######
 test_control = creation_control(130)
 test_heme = creation_heme(130)
 test_nucleotide = creation_nucleotide(130)
@@ -185,41 +178,23 @@ X_test = definition_de_x(voxels_path, test_voxels)
 Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control)
 encoded_Y_test = to_categorical(Y_test)
 
-###### CREATION DU MODEL ######
+    ###### CREATION DU MODEL ######
 critor = EarlyStopping(monitor = "val_loss", patience = 3, mode = "min")
 my_model = creation_modele()
 my_model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=['accuracy'])
 
-history = my_model.fit(X_train, encoded_Y_train, epochs = 1, batch_size = 20,
+history = my_model.fit(X_train, encoded_Y_train, epochs = 50, batch_size = 20,
              validation_split = 0.1, callbacks = [critor])
 
-# #Accuracy
-# plt.plot(history.history['acc'])
-# plt.plot(history.history['val_acc'])
-# plt.title('model accuracy')
-# plt.ylabel('accuracy')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
-
-# #Loss
-# plt.plot(history.history['loss'])
-# plt.plot(history.history["val_loss"])
-# plt.title('model loss')
-# plt.ylabel('loss')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
-
-#Sauvegarder le model
+        #Sauvegarder le model
 my_model.save('./my_model.h5')
 
-#Evaluation du modèle
+    ###### EVALUATION DU MODEL ######
 evaluation = my_model.evaluate(X_test, encoded_Y_test)
 print("\nTest score: ", evaluation[0])
 print("Test accuracy: \n", evaluation[1])
 
-#Predictions
+    ###### PREDICTIONS ######
 predictions = my_model.predict(X_test)
 
 vrai_positifs = 0
@@ -254,45 +229,46 @@ print("Pourcentage de faux positifs: {:.2f}%".format(faux_positifs*100/len(predi
 print("Pourcentage de vrais negatifs: {:.2f}%".format(vrai_negatifs*100/len(predictions)))
 print("Pourcentage de faux negatifs: {:.2f}%\n".format(faux_negatifs*100/len(predictions)))
 
-### NUCLEOTIDES
+    ### NUCLEOTIDES
 y_test_prediction_nucleotide = predictions[:,0]
 y_test_nucleotide = encoded_Y_test[:,0]
 nucleotide_fpr, nucleotide_tpr, nucleotide_thresholds = metrics.roc_curve(y_test_nucleotide, y_test_prediction_nucleotide, pos_label=2)
 nucleotide_roc_auc = metrics.auc(nucleotide_fpr, nucleotide_tpr)
 
-### HEME
+    ### HEME
 y_test_prediction_heme = predictions[:,1]
 y_test_heme = encoded_Y_test[:,1]
 heme_fpr, heme_tpr, heme_thresholds = metrics.roc_curve(y_test_heme, y_test_prediction_heme, pos_label=2)
 heme_roc_auc = metrics.auc(heme_fpr, heme_tpr)
 
-### CONTROL
+    ### CONTROL
 y_test_prediction_control = predictions[:,2]
 y_test_control = encoded_Y_test[:,2]
 control_fpr, control_tpr, control_thresholds = metrics.roc_curve(y_test_control, y_test_prediction_control, pos_label=2)
 control_roc_auc = metrics.auc(control_fpr, control_tpr)
 
-#Courbes de ROC: evaluate classifier output quality using cross-validation
+    ### Courbes de ROC: evaluate classifier output quality using cross-validation
 plt.title("Courbe ROC")
+
 plt.plot(control_fpr,
         control_tpr,
-        color='darkblue',
+        color='blue',
         linestyle='-',
-        linewidth=4,
+        linewidth=2,
         label = "control AUC = %0.2f" % control_roc_auc)
 
 plt.plot(heme_fpr,
         heme_tpr,
-        color='darkorange',
-        linestyle=':',
-        linewidth=4,
+        color='purple',
+        linestyle='-',
+        linewidth=2,
         label = "heme AUC = %0.2f" % heme_roc_auc)
 
 plt.plot(nucleotide_fpr,
         nucleotide_tpr,
-        color='deeppink',
-        linestyle=':',
-        linewidth=4,
+        color='orange',
+        linestyle='-',
+        linewidth=2,
         label = "nucleotide AUC = %0.2f" % nucleotide_roc_auc)
 
 plt.legend(loc = 'lower right')
@@ -301,14 +277,5 @@ plt.xlim([0, 1])
 plt.ylim([0, 1.05])
 plt.ylabel("Sensibility")
 plt.xlabel("1-Sensibility")
+
 plt.show()
-
-
-
-
-
-
-
-
-
-
