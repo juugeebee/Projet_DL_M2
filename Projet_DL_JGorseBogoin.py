@@ -22,8 +22,6 @@ from keras.callbacks import EarlyStopping
 from keras.wrappers.scikit_learn import KerasClassifier
 
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import KFold
-from sklearn.model_selection import cross_val_score
 
 from math import sqrt
 
@@ -119,7 +117,7 @@ def table_de_confusion (encoded_Y_test, predictions, classe):
     sensibilite = []
     specificite = []
 
-    for threshold in (np.arange(0,1,0.01)):
+    for threshold in (np.arange(0,1,0.001)):
         for i in range(len(predictions)):
             if predictions[i,classe] > threshold:
                 if encoded_Y_test[i,classe] == 1.0 and predictions[i,classe] == max(predictions[i,:]):
@@ -131,10 +129,18 @@ def table_de_confusion (encoded_Y_test, predictions, classe):
                     vrai_negatifs = vrai_negatifs + 1
                 else:
                     faux_negatifs = faux_negatifs + 1
+        
         sensibilite.append(vrai_positifs/(vrai_positifs + faux_negatifs))
         specificite.append(1-(vrai_negatifs/(vrai_negatifs + faux_positifs))) 
     
     return specificite, sensibilite  
+
+def calcul_auc (specificite, sensibilite): 
+    auc = 0
+    for i in range(len(sensibilite)-1):
+        rectangle = sensibilite[i] * (specificite[i] - specificite[i+1])
+        auc = auc + rectangle
+    return auc 
 
 
 ###### MAIN ######
@@ -229,8 +235,8 @@ my_model.save('./my_model.h5')
 
     ###### EVALUATION DU MODEL ######
 evaluation = my_model.evaluate(X_test, encoded_Y_test)
-print("\nTest score: ", evaluation[0])
-print("Test accuracy: \n", evaluation[1])
+print("\nTest score: {:.2f}".format(evaluation[0]))
+print("Test accuracy: {:.2f}".format(evaluation[1]))
 
 
     ###### PREDICTIONS ######
@@ -264,38 +270,39 @@ for i in range(predictions.shape[0]):
     elif (encoded_Y_test[i, 2] == 0.0) and (classe == 2):
         faux_negatifs += 1
 
-print("\nPourcentage de vrais positifs: {:.2f}%".format(vrai_positifs*100/len(predictions)))
-print("Pourcentage de faux positifs: {:.2f}%".format(faux_positifs*100/len(predictions)))
-print("Pourcentage de vrais negatifs: {:.2f}%".format(vrai_negatifs*100/len(predictions)))
-print("Pourcentage de faux negatifs: {:.2f}%\n".format(faux_negatifs*100/len(predictions)))
+vp = vrai_positifs*100/len(predictions)
+fp = faux_positifs*100/len(predictions)
+vn = vrai_negatifs*100/len(predictions)
+fn = faux_negatifs*100/len(predictions)
+
+print("\nPourcentage de vrais positifs: {:.2f}%".format(vp))
+print("Pourcentage de faux positifs: {:.2f}%".format(fp))
+print("Pourcentage de vrais negatifs: {:.2f}%".format(vn))
+print("Pourcentage de faux negatifs: {:.2f}%\n".format(fn))
 
 
     ### NUCLEOTIDES
 nucleotide_sensibilite, nucleotide_specificite = table_de_confusion(encoded_Y_test, predictions, 0)
 
-plt.title('Courbe de ROC classe "nucleotides"')
-plt.plot(nucleotide_specificite, nucleotide_sensibilite,
-         color='purple', linestyle='-', linewidth=2)
-plt.legend(loc="lower right")
-plt.plot([0,1], [0,1], 'r--')
-plt.xlim([0,1])
-plt.ylim([0,1])
-plt.xlabel('Specificite')
-plt.ylabel('1 - Sensibilite')
-plt.savefig("./Figures/ROC_nucleotides")
-plt.show()
+nucleotide_auc = calcul_auc(nucleotide_specificite, nucleotide_sensibilite)
+print("Aire sous la courbe classe 'Nucleotides': {:.2f}".format(nucleotide_auc))
+
 
      ### HEME
 heme_sensibilite, heme_specificite = table_de_confusion(encoded_Y_test, predictions, 1)
 
-plt.title('Courbe de ROC classe "heme"')
-plt.plot(heme_specificite, heme_sensibilite,
-          color='blue', linestyle='-', linewidth=2)
+heme_auc = calcul_auc(heme_specificite, heme_sensibilite)
+print("Aire sous la courbe classe 'Hemes': {:.2f}\n".format(heme_auc))
+
+    ###Representation des courbes de ROC
+plt.title('Courbes de ROC')
+plt.plot(heme_specificite, heme_sensibilite, label='Hemes', color='blue', linestyle='-', linewidth=2)
+plt.plot(nucleotide_specificite, nucleotide_sensibilite, label='Nucleotides', color='purple', linestyle='-', linewidth=2)
 plt.legend(loc="lower right")
 plt.plot([0,1], [0,1], 'r--')
 plt.xlim([0,1])
 plt.ylim([0,1])
-plt.xlabel('Specificite')
-plt.ylabel('1 - Sensibilite')
-plt.savefig("./Figures/ROC_hemes")
+plt.xlabel('1- Specificite')
+plt.ylabel('Sensibilite')
+plt.savefig("./ROC")
 plt.show()
