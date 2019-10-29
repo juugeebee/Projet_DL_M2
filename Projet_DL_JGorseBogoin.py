@@ -21,10 +21,12 @@ from keras import backend as k
 from keras.callbacks import EarlyStopping
 from keras.wrappers.scikit_learn import KerasClassifier
 
+from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
 from math import sqrt
+
 
 ###### FONCTIONS ######
 
@@ -44,11 +46,6 @@ def creation_nucleotide (nbre_individu):
     random.shuffle(echantillon_nucleotide)
     return echantillon_nucleotide
 
-def creation_steroid (nbre_individu):
-    echantillon_steroid = random.sample(steroid_list, nbre_individu)
-    random.shuffle(echantillon_steroid)
-    return echantillon_steroid
-
 def generation_voxels (voxels_tot, heme, nucleotide, control):
     #Génération de la liste des voxels
     echantillon_voxel = []
@@ -62,12 +59,14 @@ def generation_voxels (voxels_tot, heme, nucleotide, control):
     random.shuffle(echantillon_voxel)
     return echantillon_voxel
 
+    ###### CREATION DU JEU DE DONNEES X ######
 def definition_de_x(path, echantillon_voxel):
     X = [np.load("{}/{}".format(path, voxel)) for voxel in echantillon_voxel]
     X = [np.squeeze(array) for array in X]
     X = np.array(X)
     return X
 
+    ###### CREATION DU JEU DE DONNEES Y ######
 def definition_de_y(echantillon_voxel, nucleotide, heme, control):
     Y = []
     for voxel in echantillon_voxel:
@@ -80,7 +79,7 @@ def definition_de_y(echantillon_voxel, nucleotide, heme, control):
     Y  = np.array(Y)
     return Y
 
-#Modele de DeepDrug3D
+    ###### CREATION DU MODELE ######
 def creation_modele ():
     model = Sequential()
     # Conv layer 1
@@ -112,13 +111,37 @@ def creation_modele ():
     model.add(Activation('softmax'))
     return model   
 
+def table_de_confusion (encoded_Y_test, predictions, classe):
+    vrai_positifs = 0
+    faux_positifs = 0
+    vrai_negatifs = 0
+    faux_negatifs = 0
+    sensibilite = []
+    specificite = []
+
+    for threshold in (np.arange(0,1,0.01)):
+        for i in range(len(predictions)):
+            if predictions[i,classe] > threshold:
+                if encoded_Y_test[i,classe] == 1.0 and predictions[i,classe] == max(predictions[i,:]):
+                    vrai_positifs = vrai_positifs + 1
+                else:
+                    faux_positifs = faux_positifs + 1
+            else:
+                if encoded_Y_test[i,classe] == 0.0 and predictions[i,classe] != max(predictions[i,:]):
+                    vrai_negatifs = vrai_negatifs + 1
+                else:
+                    faux_negatifs = faux_negatifs + 1
+        sensibilite.append(vrai_positifs/(vrai_positifs + faux_negatifs))
+        specificite.append(1-(vrai_negatifs/(vrai_negatifs + faux_positifs))) 
+    
+    return specificite, sensibilite  
+
 
 ###### MAIN ######
 
         #Génération des listes poches
 control_list = []
 heme_list = []
-steroid_list = []
 nucleotide_list = []
 
 with open ("./Data/control.list", "r") as fillin:
@@ -130,11 +153,6 @@ with open ("./Data/heme.list", "r") as fillin:
     for ligne in fillin:
         heme = ligne.replace('\n','')
         heme_list.append(heme)
-
-with open ("./Data/steroid.list", "r") as fillin:
-    for ligne in fillin:
-        steroid = ligne.replace('\n','')
-        steroid_list.append(steroid)
 
 with open ("./Data/nucleotide.list", "r") as fillin:
     for ligne in fillin:
@@ -151,6 +169,7 @@ jeu_control = creation_control(200)
 jeu_heme = creation_heme(200)
 jeu_nucleotide = creation_nucleotide(200)
 
+
     ###### JEU D'APPRENTISSAGE ######
 train_control = []
 train_heme = []
@@ -164,9 +183,13 @@ train_voxels = generation_voxels(voxels_tot, train_heme, train_nucleotide, train
 
 X_train = definition_de_x(voxels_path, train_voxels)
 print("\nFormat du X_train: {}".format(X_train.shape))
+
 Y_train = definition_de_y(train_voxels, train_nucleotide, train_heme, train_control)
-encoded_Y_train = to_categorical(Y_train)
+classes = LabelEncoder()
+integer_encoding = classes.fit_transform(Y_train)
+encoded_Y_train = to_categorical(integer_encoding)
 print("Format du Y_train: {}\n".format(encoded_Y_train.shape))
+
 
     ###### JEU DE TEST ######
 test_control = []
@@ -175,19 +198,28 @@ test_nucleotide = []
 
 test_control = jeu_control[50:201]
 test_heme = jeu_heme[50:201]
-test_nucleotide = jeu_heme[50:201]
+test_nucleotide = jeu_nucleotide[50:201]
 
 test_voxels = generation_voxels(voxels_tot, test_heme, test_nucleotide, test_control)
 
 X_test = definition_de_x(voxels_path, test_voxels)
+
 Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control)
+# Colonne 0: NUCLEOTIDE
+# Colonne 1: HEME
+# Colonne 2: CONTROL
+classes = LabelEncoder()
+integer_encoding = classes.fit_transform(Y_test)
 encoded_Y_test = to_categorical(Y_test)
 
-    ###### CREATION DU MODEL ######
+
+    ###### CREATION DU MODELE ######
 my_model = creation_modele()
 print(my_model.summary())
-my_model.compile(optimizer=keras.optimizers.Adam(lr=0.00001),loss="categorical_crossentropy",metrics=['accuracy'])
 
+my_model.compile(optimizer=keras.optimizers.Adam(lr=0.00001),
+                loss="categorical_crossentropy",
+                metrics=['accuracy'])
 
 history = my_model.fit(X_train, encoded_Y_train, epochs = 10, batch_size = 20,
              validation_split = 0.1)
@@ -200,7 +232,9 @@ evaluation = my_model.evaluate(X_test, encoded_Y_test)
 print("\nTest score: ", evaluation[0])
 print("Test accuracy: \n", evaluation[1])
 
+
     ###### PREDICTIONS ######
+
 predictions = my_model.predict(X_test)
 
 vrai_positifs = 0
@@ -237,47 +271,31 @@ print("Pourcentage de faux negatifs: {:.2f}%\n".format(faux_negatifs*100/len(pre
 
 
     ### NUCLEOTIDES
-y_test_prediction_nucleotide = predictions[:,0]
-y_test_nucleotide = encoded_Y_test[:,0]
-nucleotide_fpr, nucleotide_tpr, nucleotide_thresholds = metrics.roc_curve(y_test_nucleotide, y_test_prediction_nucleotide, pos_label=2)
-nucleotide_roc_auc = metrics.auc(nucleotide_fpr, nucleotide_tpr)
+nucleotide_sensibilite, nucleotide_specificite = table_de_confusion(encoded_Y_test, predictions, 0)
 
-
-    ### HEME
-y_test_prediction_heme = predictions[:,1]
-y_test_heme = encoded_Y_test[:,1]
-heme_fpr, heme_tpr, heme_thresholds = metrics.roc_curve(y_test_heme, y_test_prediction_heme, pos_label=2)
-heme_roc_auc = metrics.auc(heme_fpr, heme_tpr)
-
-
-    ### CONTROL
-y_test_prediction_control = predictions[:,2]
-y_test_control = encoded_Y_test[:,2]
-control_fpr, control_tpr, control_thresholds = metrics.roc_curve(y_test_control, y_test_prediction_control, pos_label=2)
-control_roc_auc = metrics.auc(control_fpr, control_tpr)
-
-
-# Plot all ROC curves
-plt.figure()
-plt.plot(nucleotide_fpr, nucleotide_tpr,
-         label='micro-average ROC curve (area = {0:0.2f})'
-               ''.format(nucleotide_roc_auc),
-         color='deeppink', linestyle=':', linewidth=4)
-
-plt.plot(heme_fpr, heme_tpr,
-         label='macro-average ROC curve (area = {0:0.2f})'
-               ''.format(heme_roc_auc),
-         color='navy', linestyle=':', linewidth=4)
-
-plt.plot(control_fpr, control_tpr,
-         label='macro-average ROC curve (area = {0:0.2f})'
-               ''.format(control_roc_auc),
-         color='navy', linestyle=':', linewidth=4)
-
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('Courbes de ROC')
+plt.title('Courbe de ROC classe "nucleotides"')
+plt.plot(nucleotide_specificite, nucleotide_sensibilite,
+         color='purple', linestyle='-', linewidth=2)
 plt.legend(loc="lower right")
+plt.plot([0,1], [0,1], 'r--')
+plt.xlim([0,1])
+plt.ylim([0,1])
+plt.xlabel('Specificite')
+plt.ylabel('1 - Sensibilite')
+plt.savefig("./Figures/ROC_nucleotides")
+plt.show()
+
+     ### HEME
+heme_sensibilite, heme_specificite = table_de_confusion(encoded_Y_test, predictions, 1)
+
+plt.title('Courbe de ROC classe "heme"')
+plt.plot(heme_specificite, heme_sensibilite,
+          color='blue', linestyle='-', linewidth=2)
+plt.legend(loc="lower right")
+plt.plot([0,1], [0,1], 'r--')
+plt.xlim([0,1])
+plt.ylim([0,1])
+plt.xlabel('Specificite')
+plt.ylabel('1 - Sensibilite')
+plt.savefig("./Figures/ROC_hemes")
 plt.show()
