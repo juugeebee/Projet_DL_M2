@@ -1,6 +1,6 @@
 """
 @author : Julie Bogoin
-Master 2 BIB - 2019 2020
+Master 2 BIB Paris Diderot - 2019-2020
 Projet Deep Learning
 """
 
@@ -95,7 +95,7 @@ def creation_modele ():
     model.add(MaxPooling3D(
         pool_size=(2,2,2),
         strides=None,
-        padding='same',    # Padding method
+        padding='same', 
         data_format='channels_first'
     ))
     # Dropout 2
@@ -117,8 +117,9 @@ def table_de_confusion (encoded_Y_test, predictions, classe):
     sensibilite = []
     specificite = []
 
-    for threshold in (np.arange(0,1,0.001)):
+    for threshold in ( np.arange(start=0, stop=1, step=0.001) ):
         for i in range(len(predictions)):
+            
             if predictions[i,classe] > threshold:
                 if encoded_Y_test[i,classe] == 1.0 and predictions[i,classe] == max(predictions[i,:]):
                     vrai_positifs = vrai_positifs + 1
@@ -130,8 +131,8 @@ def table_de_confusion (encoded_Y_test, predictions, classe):
                 else:
                     faux_negatifs = faux_negatifs + 1
         
-        sensibilite.append(vrai_positifs/(vrai_positifs + faux_negatifs))
-        specificite.append(1-(vrai_negatifs/(vrai_negatifs + faux_positifs))) 
+        sensibilite.append(vrai_positifs / (vrai_positifs + faux_negatifs))
+        specificite.append(1 - (vrai_negatifs / (vrai_negatifs + faux_positifs)) ) 
     
     return specificite, sensibilite  
 
@@ -171,9 +172,9 @@ voxels_tot = os.listdir(voxels_path)
 voxels_tot = list(filter(lambda fichier: fichier.endswith('.npy'), voxels_tot))
 
         #Génération d'un jeu de données avec 200 poches
-jeu_control = creation_control(200)
-jeu_heme = creation_heme(200)
-jeu_nucleotide = creation_nucleotide(200)
+jeu_control = creation_control(400)
+jeu_heme = creation_heme(400)
+jeu_nucleotide = creation_nucleotide(400)
 
 
     ###### JEU D'APPRENTISSAGE ######
@@ -181,20 +182,22 @@ train_control = []
 train_heme = []
 train_nucleotide = []
 
-train_control = jeu_control[:51]
-train_heme = jeu_heme[:51]
-train_nucleotide = jeu_nucleotide[:51]
+train_control = jeu_control[:101]
+train_heme = jeu_heme[:101]
+train_nucleotide = jeu_nucleotide[:101]
 
 train_voxels = generation_voxels(voxels_tot, train_heme, train_nucleotide, train_control)
 
 X_train = definition_de_x(voxels_path, train_voxels)
-print("\nFormat du X_train: {}".format(X_train.shape))
+print('\n---------------------------------------')
+print('*** FORMATS DES DES JEUX DE DONNEES ***\n')
+print("Format du X_train: {}".format(X_train.shape))
 
 Y_train = definition_de_y(train_voxels, train_nucleotide, train_heme, train_control)
 classes = LabelEncoder()
 integer_encoding = classes.fit_transform(Y_train)
 encoded_Y_train = to_categorical(integer_encoding)
-print("Format du Y_train: {}\n".format(encoded_Y_train.shape))
+print("Format du Y_train: {}".format(encoded_Y_train.shape))
 
 
     ###### JEU DE TEST ######
@@ -202,13 +205,14 @@ test_control = []
 test_heme = []
 test_nucleotide = []
 
-test_control = jeu_control[50:201]
-test_heme = jeu_heme[50:201]
-test_nucleotide = jeu_nucleotide[50:201]
+test_control = jeu_control[101:401]
+test_heme = jeu_heme[101:401]
+test_nucleotide = jeu_nucleotide[101:401]
 
 test_voxels = generation_voxels(voxels_tot, test_heme, test_nucleotide, test_control)
 
 X_test = definition_de_x(voxels_path, test_voxels)
+print("Format du X_test: {}".format(X_test.shape))
 
 Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control)
 # Colonne 0: NUCLEOTIDE
@@ -217,6 +221,8 @@ Y_test = definition_de_y(test_voxels, test_nucleotide, test_heme, test_control)
 classes = LabelEncoder()
 integer_encoding = classes.fit_transform(Y_test)
 encoded_Y_test = to_categorical(Y_test)
+print("Format du Y_test: {}".format(encoded_Y_test.shape))
+print('---------------------------------------\n')
 
 
     ###### CREATION DU MODELE ######
@@ -227,7 +233,7 @@ my_model.compile(optimizer=keras.optimizers.Adam(lr=0.00001),
                 loss="categorical_crossentropy",
                 metrics=['accuracy'])
 
-history = my_model.fit(X_train, encoded_Y_train, epochs = 10, batch_size = 20,
+history = my_model.fit(X_train, encoded_Y_train, epochs = 25, batch_size = 20,
              validation_split = 0.1)
 
         #Sauvegarder le model
@@ -235,8 +241,10 @@ my_model.save('./my_model.h5')
 
     ###### EVALUATION DU MODEL ######
 evaluation = my_model.evaluate(X_test, encoded_Y_test)
-print("\nTest score: {:.2f}".format(evaluation[0]))
-print("Test accuracy: {:.2f}".format(evaluation[1]))
+print('\n----------------------------')
+print('*** EVALUATION DU MODELE ***\n')
+print("Score: {:.2f}".format(evaluation[0]))
+print("Accuracy: {:.2f}\n".format(evaluation[1]))
 
 
     ###### PREDICTIONS ######
@@ -275,34 +283,40 @@ fp = faux_positifs*100/len(predictions)
 vn = vrai_negatifs*100/len(predictions)
 fn = faux_negatifs*100/len(predictions)
 
-print("\nPourcentage de vrais positifs: {:.2f}%".format(vp))
+print('------------------------------------------')
+print('*** EVALUATION DE LA PREDICTION ***\n')
+print("Pourcentage de vrais positifs: {:.2f}%".format(vp))
 print("Pourcentage de faux positifs: {:.2f}%".format(fp))
 print("Pourcentage de vrais negatifs: {:.2f}%".format(vn))
-print("Pourcentage de faux negatifs: {:.2f}%\n".format(fn))
+print("Pourcentage de faux negatifs: {:.2f}%".format(fn))
 
 
     ### NUCLEOTIDES
-nucleotide_sensibilite, nucleotide_specificite = table_de_confusion(encoded_Y_test, predictions, 0)
+nucleotide_specificite, nucleotide_sensibilite = table_de_confusion(encoded_Y_test, predictions, 0)
 
 nucleotide_auc = calcul_auc(nucleotide_specificite, nucleotide_sensibilite)
+print('\nAffichage des courbes de ROC...\n')
 print("Aire sous la courbe classe 'Nucleotides': {:.2f}".format(nucleotide_auc))
 
 
      ### HEME
-heme_sensibilite, heme_specificite = table_de_confusion(encoded_Y_test, predictions, 1)
+heme_specificite, heme_sensibilite = table_de_confusion(encoded_Y_test, predictions, 1)
 
 heme_auc = calcul_auc(heme_specificite, heme_sensibilite)
-print("Aire sous la courbe classe 'Hemes': {:.2f}\n".format(heme_auc))
+print("Aire sous la courbe classe 'Hemes': {:.2f}".format(heme_auc))
+print('------------------------------------------\n')
 
     ###Representation des courbes de ROC
 plt.title('Courbes de ROC')
-plt.plot(heme_specificite, heme_sensibilite, label='Hemes', color='blue', linestyle='-', linewidth=2)
-plt.plot(nucleotide_specificite, nucleotide_sensibilite, label='Nucleotides', color='purple', linestyle='-', linewidth=2)
+plt.plot(heme_specificite, heme_sensibilite, label='Hemes', color='blue', linestyle='-', linewidth=1)
+plt.plot(nucleotide_specificite, nucleotide_sensibilite, label='Nucleotides', color='purple', linestyle='-', linewidth=1)
 plt.legend(loc="lower right")
 plt.plot([0,1], [0,1], 'r--')
 plt.xlim([0,1])
 plt.ylim([0,1])
-plt.xlabel('1- Specificite')
+plt.xlabel('1-Specificite')
 plt.ylabel('Sensibilite')
 plt.savefig("./ROC")
 plt.show()
+
+print('JOB DONE! \n')
