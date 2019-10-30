@@ -10,7 +10,6 @@ import os
 import random
 import keras
 import matplotlib.pyplot as plt
-import sklearn.metrics as metrics
 import tensorflow as tf
 
 from keras.utils import to_categorical
@@ -20,10 +19,7 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras import backend as k
 from keras.callbacks import EarlyStopping
 from keras.wrappers.scikit_learn import KerasClassifier
-
 from sklearn.preprocessing import LabelEncoder
-
-from math import sqrt
 
 
 ###### FONCTIONS ######
@@ -117,7 +113,7 @@ def table_de_confusion (encoded_Y_test, predictions, classe):
     sensibilite = []
     specificite = []
 
-    for threshold in ( np.arange(start=0, stop=1, step=0.001) ):
+    for threshold in ( np.arange(start=0, stop=1, step=0.00001) ):
         for i in range(len(predictions)):
             
             if predictions[i,classe] > threshold:
